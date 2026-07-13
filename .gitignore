@@ -1,0 +1,8 @@
+# Build artifacts — build locally with ./build.sh
+ClaudeOMeter.app/
+ClaudeOMeterFloat.app/
+ClaudeOMeter
+ClaudeOMeterFloat
+
+# macOS noise
+.DS_Store
