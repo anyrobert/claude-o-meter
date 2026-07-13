@@ -15,7 +15,10 @@ Ring colors: green &lt; 60%, amber &lt; 85%, red above. The panel shows:
 - **Weekly (all models)** — percent used and the absolute reset date
 - **Weekly · &lt;model&gt;** — any per-model weekly limits the API reports (e.g. Fable/Opus)
 - **Claude in terminals** — every running `claude` CLI session: its working
-  directory and how long it's been up (hover a row for the full path + pid)
+  directory and how long it's been up (hover a row for the full path + pid).
+  Click a row for actions: **Terminate** (SIGTERM — clean exit, session stays
+  resumable via `claude --resume`), **Force kill** (SIGKILL, for ghost
+  sessions that ignore SIGTERM), or **Copy PID**.
 - Refresh button, link to claude.ai's usage page, and Quit
 
 Usage refreshes every 120 seconds, plus once immediately on wake from sleep.

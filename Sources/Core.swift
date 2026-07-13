@@ -551,6 +551,23 @@ final class UsageModel: ObservableObject {
         refresh()
     }
 
+    // Re-scan terminal sessions only — no usage API call, so no rate-limit cost.
+    func refreshSessions(afterDelay seconds: Double = 0) {
+        Task {
+            if seconds > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            }
+            sessions = await TerminalSessions.snapshot()
+        }
+    }
+
+    // SIGTERM lets `claude` exit cleanly (the session stays resumable via
+    // `claude --resume`); SIGKILL is for ghosts that ignore SIGTERM.
+    func terminate(_ session: TerminalSession, force: Bool) {
+        _ = Darwin.kill(session.pid, force ? SIGKILL : SIGTERM)
+        refreshSessions(afterDelay: 0.8)  // give the process a moment to die
+    }
+
     var sessionPercent: Double? {
         metrics.first { $0.kind == .session }?.percent
     }
@@ -651,19 +668,37 @@ struct PanelView: View {
                     .foregroundStyle(.tertiary)
             } else {
                 ForEach(model.sessions) { session in
-                    HStack {
-                        Text(session.displayPath)
-                            .font(.caption)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer()
-                        if let uptime = session.uptimeText {
-                            Text(uptime)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    Menu {
+                        Button("Terminate session (pid \(session.pid))") {
+                            model.terminate(session, force: false)
                         }
+                        Button("Force kill", role: .destructive) {
+                            model.terminate(session, force: true)
+                        }
+                        Divider()
+                        Button("Copy PID") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString("\(session.pid)", forType: .string)
+                        }
+                    } label: {
+                        HStack {
+                            Text(session.displayPath)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer()
+                            if let uptime = session.uptimeText {
+                                Text(uptime)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .contentShape(Rectangle())
                     }
-                    .help("\(session.workingDirectory ?? "unknown directory") — pid \(session.pid)")
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .menuIndicator(.hidden)
+                    .help("\(session.workingDirectory ?? "unknown directory") — pid \(session.pid) — click for actions")
                 }
             }
 
