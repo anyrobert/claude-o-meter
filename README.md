@@ -68,7 +68,16 @@ ask again. The two apps are separate binaries, so each prompts once. (The
 build script ad-hoc-signs the apps so that choice sticks — but each *rebuild*
 produces a new signature, so you'll be re-asked once per rebuild.)
 
-**Start at login:** System Settings → General → Login Items → add the app(s).
+**Start at login:** tick "Launch at login" in the app's panel, or from the CLI:
+
+```sh
+./ClaudeOMeterFloat.app/Contents/MacOS/ClaudeOMeterFloat --login-item on   # or off / status
+```
+
+Each app registers itself independently (via `SMAppService`), and the entry
+shows up in System Settings → General → Login Items where it can also be
+removed. Registration is tied to the app's path — if you move the `.app`,
+re-enable it.
 
 ## CLI modes
 

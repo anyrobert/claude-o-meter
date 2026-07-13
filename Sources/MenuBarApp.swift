@@ -9,6 +9,7 @@ struct ClaudeOMeterApp: App {
     @StateObject private var model: UsageModel
 
     init() {
+        handleLoginItemFlagAndExitIfPresent()
         if CommandLine.arguments.contains("--check") {
             runCheckAndExit()
         }

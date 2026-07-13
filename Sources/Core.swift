@@ -8,6 +8,7 @@
 
 import AppKit
 import Security
+import ServiceManagement
 import SwiftUI
 
 // MARK: - Errors
@@ -611,6 +612,7 @@ struct MetricRow: View {
 
 struct PanelView: View {
     @ObservedObject var model: UsageModel
+    @State private var launchAtLogin = LoginItem.isEnabled
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -704,6 +706,15 @@ struct PanelView: View {
 
             Divider()
 
+            Toggle("Launch at login", isOn: $launchAtLogin)
+                .toggleStyle(.checkbox)
+                .font(.caption)
+                .onChange(of: launchAtLogin) { enabled in
+                    if !LoginItem.set(enabled) {
+                        launchAtLogin = LoginItem.isEnabled  // revert on failure
+                    }
+                }
+
             HStack {
                 if let updated = model.lastUpdated {
                     Text("Updated \(updated, style: .time)")
@@ -724,7 +735,71 @@ struct PanelView: View {
         }
         .padding(12)
         .frame(width: 270)
+        .onAppear {
+            launchAtLogin = LoginItem.isEnabled  // resync; may change externally
+        }
     }
+}
+
+// MARK: - Launch at login (SMAppService, per app)
+
+enum LoginItem {
+    static var isEnabled: Bool {
+        SMAppService.mainApp.status == .enabled
+    }
+
+    // Returns whether the desired state was applied.
+    @discardableResult
+    static func set(_ enabled: Bool) -> Bool {
+        guard enabled != isEnabled else { return true }
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+            return true
+        } catch {
+            NSLog("LoginItem: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    static var statusText: String {
+        switch SMAppService.mainApp.status {
+        case .enabled: return "enabled"
+        case .notRegistered: return "not registered"
+        case .requiresApproval: return "requires approval — System Settings → General → Login Items"
+        case .notFound: return "not found"
+        @unknown default: return "unknown"
+        }
+    }
+}
+
+// `<binary> --login-item on|off|status` — manage launch-at-login from the CLI.
+func handleLoginItemFlagAndExitIfPresent() {
+    let args = CommandLine.arguments
+    guard let index = args.firstIndex(of: "--login-item") else { return }
+    let mode = args.count > index + 1 ? args[index + 1] : "status"
+    switch mode {
+    case "on":
+        if !LoginItem.set(true) {
+            print("ERROR: could not register login item")
+            exit(1)
+        }
+    case "off":
+        if !LoginItem.set(false) {
+            print("ERROR: could not unregister login item")
+            exit(1)
+        }
+    case "status":
+        break
+    default:
+        print("usage: --login-item on|off|status")
+        exit(2)
+    }
+    print("login item: \(LoginItem.statusText)")
+    exit(0)
 }
 
 // MARK: - CLI check mode

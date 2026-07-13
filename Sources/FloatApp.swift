@@ -230,6 +230,7 @@ struct ClaudeOMeterFloatApp: App {
 
     init() {
         let args = CommandLine.arguments
+        handleLoginItemFlagAndExitIfPresent()
         if args.contains("--check") {
             runCheckAndExit()
         }
